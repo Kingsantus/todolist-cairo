@@ -1,6 +1,7 @@
 #[starknet::contract]
 pub mod Todo {
-    use core::starknet::ContractAddress;
+    use starknet::event::EventEmitter;
+use core::starknet::ContractAddress;
     use core::starknet::get_caller_address;
     use core::starknet::storage::{
         Map,
@@ -16,6 +17,29 @@ pub mod Todo {
         nounce: u256,
     }
 
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    pub enum Event {
+        TaskCreated: TaskCreated,
+        TaskUpdated: TaskUpdated,
+        TaskDeleted: TaskDeleted
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct TaskCreated {
+        id: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct TaskUpdated {
+       id: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    pub struct TaskDeleted {
+       id: u256,
+    }
+
     #[abi(embed_v0)]
     impl TodoImpl of ITodo<ContractState> {
         fn add_task(ref self:ContractState, title: ByteArray, desc: ByteArray) -> u256 {
@@ -29,6 +53,9 @@ pub mod Todo {
             };
             self.tasks.entry((id, caller)).write(task);
             self.nounce.write(id);
+            self.emit(Event::TaskCreated(TaskCreated {
+                id: id
+            }));
             id
         }
 
@@ -45,6 +72,9 @@ pub mod Todo {
                 Option::None(_) => {},
             }
             task.completed = complete;
+            self.emit(Event::TaskUpdated(TaskUpdated {
+                id: id
+            }));
             self.tasks.entry((id, caller)).write(task);
         }
 
@@ -54,6 +84,9 @@ pub mod Todo {
             self.tasks.entry((id, caller)).write(
                 Task { title: "", description: "", completed: bool::False }
             );
+            self.emit(Event::TaskDeleted(TaskDeleted {
+                id: id
+            }));
         }
 
         fn get_all_tasks(self: @ContractState, id: u256) -> Task {
