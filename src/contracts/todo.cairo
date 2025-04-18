@@ -1,7 +1,8 @@
 #[starknet::contract]
 pub mod Todo {
     use starknet::event::EventEmitter;
-use core::starknet::ContractAddress;
+    use openzeppelin::access::ownable::OwnableComponent;
+    use core::starknet::ContractAddress;
     use core::starknet::get_caller_address;
     use core::starknet::storage::{
         Map,
@@ -11,10 +12,19 @@ use core::starknet::ContractAddress;
     };
     use crate::interfaces::todo::*;
 
+    component!(path: OwnableComponent, storage: ownable, event: OwnableEvent);
+
+    // Ownable Mixin
+    #[abi(embed_v0)]
+    impl OwnableMixinImpl = OwnableComponent::OwnableMixinImpl<ContractState>;
+    impl InternalImpl = OwnableComponent::InternalImpl<ContractState>;
+
     #[storage]
     pub struct Storage {
         tasks: Map<(u256, ContractAddress), Task>,
         nounce: u256,
+        #[substorage(v0)]
+        ownable: OwnableComponent::Storage
     }
 
     #[event]
@@ -22,7 +32,9 @@ use core::starknet::ContractAddress;
     pub enum Event {
         TaskCreated: TaskCreated,
         TaskUpdated: TaskUpdated,
-        TaskDeleted: TaskDeleted
+        TaskDeleted: TaskDeleted,
+        #[flat]
+        OwnableEvent: OwnableComponent::Event
     }
 
     #[derive(Drop, starknet::Event)]
@@ -38,6 +50,12 @@ use core::starknet::ContractAddress;
     #[derive(Drop, starknet::Event)]
     pub struct TaskDeleted {
        id: u256,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        // Set the initial owner of the contract
+        self.ownable.initializer(owner);
     }
 
     #[abi(embed_v0)]
@@ -84,6 +102,7 @@ use core::starknet::ContractAddress;
             self.tasks.entry((id, caller)).write(
                 Task { title: "", description: "", completed: bool::False }
             );
+            self.ownable.assert_only_owner();
             self.emit(Event::TaskDeleted(TaskDeleted {
                 id: id
             }));
