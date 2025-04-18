@@ -3,18 +3,32 @@
 
 use starknet::ContractAddress;
 
-use snforge_std::{declare, ContractClassTrait, DeclareResultTrait};
+use snforge_std::{
+    ContractClassTrait, DeclareResultTrait, EventSpyAssertionsTrait, declare, spy_events,
+    start_cheat_caller_address, stop_cheat_caller_address,
+};
 
-// use task::IHelloStarknetSafeDispatcher;
-// use task::IHelloStarknetSafeDispatcherTrait;
-// use task::IHelloStarknetDispatcher;
-// use task::IHelloStarknetDispatcherTrait;
+use task::interfaces::todo::*;
+use task::contracts::todo::*;
 
-// fn deploy_contract(name: ByteArray) -> ContractAddress {
-//     let contract = declare(name).unwrap().contract_class();
-//     let (contract_address, _) = contract.deploy(@ArrayTrait::new()).unwrap();
-//     contract_address
-// }
+fn OWNER() -> ContractAddress {
+    'OWNER'.try_into().unwrap()
+}
+
+fn SANTUS() -> ContractAddress {
+    'SANTUS'.try_into().unwrap()
+}
+
+
+fn deploy_contract(name: ByteArray, owner: ContractAddress) -> ContractAddress {
+    let contract = declare(name).unwrap().contract_class();
+    let mut constructor_args = array![];
+    // Serialize the owner address
+    SANTUS().serialize(ref constructor_args);
+    let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
+    contract_address
+}
+
 
 // #[test]
 // fn test_increase_balance() {
